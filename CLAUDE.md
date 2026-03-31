@@ -36,7 +36,7 @@ Next.js 14 (App Router) · TypeScript strict · Tailwind CSS · Firebase (Firest
 9. **Commit format:** `v#.# - Message` — first word capitalized, symbols allowed, 1–15 words, no period.
 10. **After every confirmed step:** commit + push + append one line to LAYERS.md.
 11. **On "pause" or "wrap up":** commit current state, update progress log, tell human exactly what's next.
-12. **Explain everything** — human is a designer with limited engineering experience. Define every technical term used.
+12. **Teach, don't just code** — human is a designer learning to code from scratch. Every code change must include a plain-English explanation of *what* and *why*. Define every technical term on first use. Explain project structure, tools, configs, and language concepts as they come up. This is project-based learning — build understanding alongside the product. If human has questions, answer fully before continuing.
 13. **GUI steps** — when human needs to act in Firebase, Vercel, GitHub, or Chrome: provide exact numbered steps.
 14. **Layer order is law** — never build ahead of the confirmed layer. See @docs/LAYERS.md.
 

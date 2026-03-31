@@ -18,14 +18,14 @@
 - [x] **Commit v0.0**
 
 ## Layer 1 — Companion on Canvas
-- [ ] Walk human through Firebase console setup (exact GUI steps)
-- [ ] `lib/firebase.ts` — initialize Firebase
-- [ ] Canvas page renders static hardcoded article text
-- [ ] `Companion.tsx` — renders a predefined PNG on canvas
-- [ ] Pretext integration — text reflows around companion
-- [ ] Drag companion — text reflows live with smooth physics
-- [ ] Click companion — spin animation (Framer Motion)
-- [ ] **Commit v0.1**
+- [x] Walk human through Firebase console setup (exact GUI steps)
+- [x] `lib/firebase.ts` — initialize Firebase
+- [x] Canvas page renders static hardcoded article text
+- [x] `Companion.tsx` — renders a predefined PNG on canvas
+- [x] Pretext integration — text reflows around companion
+- [x] Drag companion — text reflows live with smooth physics
+- [x] Click companion — rotation animation (Framer Motion)
+- [x] **Commit v0.1**
 
 ## Layer 2 — Eye Tracking
 - [ ] Eye placement tool — two circles, drag + resize
@@ -79,3 +79,4 @@
 ## Progress Log
 [v0.0] — GitHub init: MIT license + README (github.com)
 [v0.0] 2026-03-31 — Scaffold: Next.js + TypeScript + all dependencies + folder structure + CLAUDE.md + docs/
+[v0.1] 2026-03-31 — Companion on canvas: Firebase init, Pretext text reflow, drag + rotate with pixel-accurate shape wrapping
