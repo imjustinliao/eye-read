@@ -18,18 +18,26 @@ const SUBTITLE = "How forests communicate through an underground network";
 const BODY =
   "Beneath the forest floor lies a vast network of fungal threads connecting the roots of trees. Scientists call it the mycorrhizal network — but it has earned a more poetic name: the Wood Wide Web. Through this network, trees share nutrients, send chemical warnings about insect attacks, and even nurture their young.\n\nA mother tree — the oldest and tallest in a grove — can recognize her own seedlings among the crowd. She sends them extra carbon through the fungal network, giving them a better chance of survival in the shaded understory. When a tree is dying, it dumps its resources into the network, feeding its neighbors one final time.\n\nThis discovery has reshaped how ecologists think about competition in forests. Trees are not isolated individuals fighting for sunlight. They are members of a community, cooperating through shared infrastructure that is invisible to the naked eye.\n\nThe implications extend beyond biology. Urban planners are beginning to consider mycorrhizal health when designing green spaces. Conservationists argue that protecting a single ancient tree means protecting an entire network. And philosophers see in the Wood Wide Web a metaphor for the kind of quiet, persistent interconnection that sustains all living systems.\n\nNext time you walk through a forest, remember: beneath your feet, the trees are talking.";
 
-// --- Layout constants ---
-const FONT = '18px "Georgia", serif';
-const LINE_HEIGHT = 30;
+// --- Layout constants (responsive) ---
 const COLUMN_MAX_WIDTH = 672;
-const PADDING_X = 24;
-const PADDING_TOP = 64;
 const COMPANION_PADDING = 8;
 const MIN_SLOT_WIDTH = 40;
 
-// --- Companion size ---
-const COMPANION_WIDTH = 150;
-const COMPANION_HEIGHT = 150;
+// Returns responsive values based on screen width
+function getResponsiveLayout(screenWidth: number) {
+  const isSmall = screenWidth < 640;
+  const isMedium = screenWidth < 1024;
+  return {
+    font: isSmall ? '16px "Georgia", serif' : '18px "Georgia", serif',
+    lineHeight: isSmall ? 26 : 30,
+    titleFont: isSmall ? 'bold 28px "Georgia", serif' : 'bold 36px "Georgia", serif',
+    titleLineHeight: isSmall ? 34 : 44,
+    paddingX: isSmall ? 16 : 24,
+    paddingTop: isSmall ? 40 : 64,
+    companionWidth: isSmall ? 100 : isMedium ? 130 : 150,
+    companionHeight: isSmall ? 100 : isMedium ? 130 : 150,
+  };
+}
 
 // --- Types ---
 type PositionedLine = {
@@ -104,16 +112,17 @@ function layoutBody(
   columnWidth: number,
   companion: CompanionRect,
   shapeProfile: ShapeProfile,
+  lineHeight: number,
 ): PositionedLine[] {
   const lines: PositionedLine[] = [];
   let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
   let y = startY;
 
   while (true) {
-    const slots = getLineSlots(y, y + LINE_HEIGHT, columnLeft, columnWidth, companion, shapeProfile);
+    const slots = getLineSlots(y, y + lineHeight, columnLeft, columnWidth, companion, shapeProfile);
 
     if (slots.length === 0) {
-      y += LINE_HEIGHT;
+      y += lineHeight;
       continue;
     }
 
@@ -130,7 +139,7 @@ function layoutBody(
     }
 
     if (textExhausted) break;
-    y += LINE_HEIGHT;
+    y += lineHeight;
   }
 
   return lines;
@@ -161,17 +170,20 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   const [titleLines, setTitleLines] = useState<PositionedLine[]>([]);
   const [subtitleY, setSubtitleY] = useState(0);
   const [companionPos, setCompanionPos] = useState({ x: 0, y: 0 });
+  const [companionSize, setCompanionSize] = useState({ w: 150, h: 150 });
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<CompanionMode>("anchored");
+  const [layoutConfig, setLayoutConfig] = useState(() =>
+    typeof window !== "undefined" ? getResponsiveLayout(window.innerWidth) : getResponsiveLayout(1024),
+  );
 
-  // In fixed mode, this stores the viewport position (stays constant on scroll)
-  // In anchored mode, companionPos is the page position (scrolls with content)
   const fixedViewportPos = useRef({ x: 0, y: 0 });
 
   const preparedRef = useRef<PreparedTextWithSegments | null>(null);
   const columnLeftRef = useRef(0);
   const columnWidthRef = useRef(0);
   const bodyStartYRef = useRef(0);
+  const lineHeightRef = useRef(30);
   const shapeProfileRef = useRef<ShapeProfile>({ rows: [], width: 0, height: 0, offsetX: 0, offsetY: 0 });
 
   const isDragging = useRef(false);
@@ -195,11 +207,12 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       bodyStartYRef.current,
       columnLeftRef.current,
       columnWidthRef.current,
-      { x: compX, y: compY, width: COMPANION_WIDTH, height: COMPANION_HEIGHT },
+      { x: compX, y: compY, width: companionSize.w, height: companionSize.h },
       shapeProfileRef.current,
+      lineHeightRef.current,
     );
     setLines(bodyLines);
-  }, []);
+  }, [companionSize]);
 
   // Rebuild shape profile at a given angle and relayout text
   const rebuildShapeAndRelayout = useCallback(async (
@@ -209,8 +222,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   ) => {
     const profile = await buildShapeProfile(
       "/companions/mark.png",
-      COMPANION_WIDTH,
-      COMPANION_HEIGHT,
+      companionSize.w,
+      companionSize.h,
       angleDeg,
     );
     shapeProfileRef.current = profile;
@@ -220,17 +233,22 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       bodyStartYRef.current,
       columnLeftRef.current,
       columnWidthRef.current,
-      { x: compX, y: compY, width: COMPANION_WIDTH, height: COMPANION_HEIGHT },
+      { x: compX, y: compY, width: companionSize.w, height: companionSize.h },
       profile,
+      lineHeightRef.current,
     );
     setLines(bodyLines);
-  }, []);
+  }, [companionSize]);
 
   // --- Initial layout on mount ---
   useEffect(() => {
+    const resp = getResponsiveLayout(window.innerWidth);
+    setLayoutConfig(resp);
+    setCompanionSize({ w: resp.companionWidth, h: resp.companionHeight });
+
     Promise.all([
       document.fonts.ready,
-      buildShapeProfile("/companions/mark.png", COMPANION_WIDTH, COMPANION_HEIGHT, 0),
+      buildShapeProfile("/companions/mark.png", resp.companionWidth, resp.companionHeight, 0),
     ]).then(([, shapeProfile]) => {
       shapeProfileRef.current = shapeProfile;
 
@@ -238,24 +256,22 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       if (!stageEl) return;
 
       const stageWidth = stageEl.clientWidth;
-      const columnWidth = Math.min(COLUMN_MAX_WIDTH, stageWidth - PADDING_X * 2);
+      const columnWidth = Math.min(COLUMN_MAX_WIDTH, stageWidth - resp.paddingX * 2);
       const columnLeft = Math.round((stageWidth - columnWidth) / 2);
       columnLeftRef.current = columnLeft;
       columnWidthRef.current = columnWidth;
 
       // Title
-      const titleFont = 'bold 36px "Georgia", serif';
-      const titlePrepared = prepareWithSegments(TITLE, titleFont);
-      const titleLineHeight = 44;
+      const titlePrepared = prepareWithSegments(TITLE, resp.titleFont);
       const tLines: PositionedLine[] = [];
       let tCursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
-      let tY = PADDING_TOP;
+      let tY = resp.paddingTop;
       while (true) {
         const line = layoutNextLine(titlePrepared, tCursor, columnWidth);
         if (line === null) break;
         tLines.push({ x: columnLeft, y: tY, text: line.text });
         tCursor = line.end;
-        tY += titleLineHeight;
+        tY += resp.titleLineHeight;
       }
       setTitleLines(tLines);
 
@@ -267,11 +283,13 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       const bodyStartY = subY + 36;
       bodyStartYRef.current = bodyStartY;
 
-      const compX = columnLeft + Math.round((columnWidth - COMPANION_WIDTH) / 2);
-      const compY = bodyStartY + LINE_HEIGHT * 3;
+      lineHeightRef.current = resp.lineHeight;
+
+      const compX = columnLeft + Math.round((columnWidth - resp.companionWidth) / 2);
+      const compY = bodyStartY + resp.lineHeight * 3;
       setCompanionPos({ x: compX, y: compY });
 
-      const prepared = prepareWithSegments(BODY, FONT);
+      const prepared = prepareWithSegments(BODY, resp.font);
       preparedRef.current = prepared;
 
       const bodyLines = layoutBody(
@@ -279,8 +297,9 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
         bodyStartY,
         columnLeft,
         columnWidth,
-        { x: compX, y: compY, width: COMPANION_WIDTH, height: COMPANION_HEIGHT },
+        { x: compX, y: compY, width: resp.companionWidth, height: resp.companionHeight },
         shapeProfile,
+        resp.lineHeight,
       );
       setLines(bodyLines);
       setReady(true);
@@ -288,17 +307,43 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   }, []);
 
   // --- Scroll handler for fixed mode ---
+  // When scrolling in fixed mode, the companion's PAGE position changes
+  // (even though its VIEWPORT position stays the same), so text must reflow.
   useEffect(() => {
+    let scrollRaf = 0;
+
     const handleScroll = () => {
       if (modeRef.current !== "fixed") return;
-      const pagePos = viewportToPage(fixedViewportPos.current.x, fixedViewportPos.current.y);
-      setCompanionPos(pagePos);
-      relayout(pagePos.x, pagePos.y);
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = requestAnimationFrame(() => {
+        const stageEl = stageRef.current;
+        if (!stageEl) return;
+        // Convert fixed viewport position to current page position
+        const rect = stageEl.getBoundingClientRect();
+        const pageX = fixedViewportPos.current.x - rect.left;
+        const pageY = fixedViewportPos.current.y - rect.top;
+        setCompanionPos({ x: pageX, y: pageY });
+
+        if (!preparedRef.current) return;
+        const bodyLines = layoutBody(
+          preparedRef.current,
+          bodyStartYRef.current,
+          columnLeftRef.current,
+          columnWidthRef.current,
+          { x: pageX, y: pageY, width: companionSize.w, height: companionSize.h },
+          shapeProfileRef.current,
+          lineHeightRef.current,
+        );
+        setLines(bodyLines);
+      });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [viewportToPage, relayout]);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      cancelAnimationFrame(scrollRaf);
+    };
+  }, []);
 
   // --- Mode toggle ---
   const toggleMode = useCallback(() => {
@@ -324,9 +369,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
     }
   }, [companionPos, viewportToPage, relayout]);
 
-  // --- Drag handlers ---
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  // --- Drag handlers (mouse + touch) ---
+  const startDrag = useCallback((clientX: number, clientY: number) => {
     isDragging.current = true;
     didDrag.current = false;
 
@@ -335,36 +379,38 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
     const stageRect = stageEl.getBoundingClientRect();
 
     if (modeRef.current === "fixed") {
-      // In fixed mode, drag offset is relative to viewport
       dragOffset.current = {
-        x: e.clientX - fixedViewportPos.current.x,
-        y: e.clientY - fixedViewportPos.current.y,
+        x: clientX - fixedViewportPos.current.x,
+        y: clientY - fixedViewportPos.current.y,
       };
     } else {
       dragOffset.current = {
-        x: e.clientX - stageRect.left - companionPos.x,
-        y: e.clientY - stageRect.top - companionPos.y,
+        x: clientX - stageRect.left - companionPos.x,
+        y: clientY - stageRect.top - companionPos.y,
       };
     }
 
     const latestPos = { x: companionPos.x, y: companionPos.y };
 
-    const handleMouseMove = (moveEvent: MouseEvent) => {
+    const onMove = (cx: number, cy: number) => {
       if (!isDragging.current) return;
       didDrag.current = true;
 
       if (modeRef.current === "fixed") {
-        // Update viewport position
-        const vx = moveEvent.clientX - dragOffset.current.x;
-        const vy = moveEvent.clientY - dragOffset.current.y;
+        const vx = cx - dragOffset.current.x;
+        const vy = cy - dragOffset.current.y;
         fixedViewportPos.current = { x: vx, y: vy };
-        // Convert to page position for text layout
-        const pagePos = viewportToPage(vx, vy);
-        latestPos.x = pagePos.x;
-        latestPos.y = pagePos.y;
+        const rect = stageRef.current?.getBoundingClientRect();
+        if (rect) {
+          latestPos.x = vx - rect.left;
+          latestPos.y = vy - rect.top;
+        }
       } else {
-        latestPos.x = moveEvent.clientX - stageRect.left - dragOffset.current.x;
-        latestPos.y = moveEvent.clientY - stageRect.top - dragOffset.current.y;
+        const rect = stageRef.current?.getBoundingClientRect();
+        if (rect) {
+          latestPos.x = cx - rect.left - dragOffset.current.x;
+          latestPos.y = cy - rect.top - dragOffset.current.y;
+        }
       }
 
       cancelAnimationFrame(rafId.current);
@@ -374,17 +420,40 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       });
     };
 
-    const handleMouseUp = () => {
+    const onEnd = () => {
       isDragging.current = false;
       setCompanionPos({ x: latestPos.x, y: latestPos.y });
       relayout(latestPos.x, latestPos.y);
       window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mouseup", onEnd);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", onEnd);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault(); // prevent scrolling while dragging
+      const t = e.touches[0];
+      if (t) onMove(t.clientX, t.clientY);
     };
 
     window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  }, [companionPos, relayout, viewportToPage]);
+    window.addEventListener("mouseup", onEnd);
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", onEnd);
+    window.addEventListener("touchcancel", onEnd);
+  }, [companionPos, relayout]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    startDrag(e.clientX, e.clientY);
+  }, [startDrag]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (t) startDrag(t.clientX, t.clientY);
+  }, [startDrag]);
 
   // --- Rotation handler ---
   const handleRotate = useCallback((angleDeg: number) => {
@@ -402,8 +471,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             style={{
               left: line.x,
               top: line.y,
-              font: 'bold 36px "Georgia", serif',
-              lineHeight: "44px",
+              font: layoutConfig.titleFont,
+              lineHeight: `${layoutConfig.titleLineHeight}px`,
             }}
           >
             {line.text}
@@ -417,7 +486,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             style={{
               left: columnLeftRef.current,
               top: subtitleY,
-              font: '18px "Georgia", serif',
+              font: layoutConfig.font,
               lineHeight: "28px",
             }}
           >
@@ -433,8 +502,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             style={{
               left: line.x,
               top: line.y,
-              font: FONT,
-              lineHeight: `${LINE_HEIGHT}px`,
+              font: layoutConfig.font,
+              lineHeight: `${layoutConfig.lineHeight}px`,
             }}
           >
             {line.text}
@@ -446,9 +515,10 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
           <Companion
             x={companionPos.x}
             y={companionPos.y}
-            width={COMPANION_WIDTH}
-            height={COMPANION_HEIGHT}
+            width={companionSize.w}
+            height={companionSize.h}
             onDragStart={handleDragStart}
+            onTouchDragStart={handleTouchStart}
             didDrag={didDrag}
             onRotate={handleRotate}
             eyeCalibration={eyeCalibration}
@@ -463,9 +533,10 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
         <Companion
           x={fixedViewportPos.current.x}
           y={fixedViewportPos.current.y}
-          width={COMPANION_WIDTH}
-          height={COMPANION_HEIGHT}
+          width={companionSize.w}
+          height={companionSize.h}
           onDragStart={handleDragStart}
+          onTouchDragStart={handleTouchStart}
           didDrag={didDrag}
           onRotate={handleRotate}
           eyeCalibration={eyeCalibration}

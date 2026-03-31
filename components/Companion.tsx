@@ -10,6 +10,7 @@ type CompanionProps = {
   width: number;
   height: number;
   onDragStart: (e: React.MouseEvent) => void;
+  onTouchDragStart: (e: React.TouchEvent) => void;
   didDrag: React.RefObject<boolean>;
   onRotate: (angleDeg: number) => void;
   eyeCalibration: EyeCalibrationPair;
@@ -19,7 +20,7 @@ type CompanionProps = {
 
 export default function Companion({
   x, y, width, height,
-  onDragStart, didDrag, onRotate,
+  onDragStart, onTouchDragStart, didDrag, onRotate,
   eyeCalibration, mode, onToggleMode,
 }: CompanionProps) {
   const controls = useAnimationControls();
@@ -96,6 +97,7 @@ export default function Companion({
       className={`${mode === "fixed" ? "fixed" : "absolute"} cursor-grab active:cursor-grabbing`}
       style={{ left: x, top: y, width, height, zIndex: 50 }}
       onMouseDown={onDragStart}
+      onTouchStart={onTouchDragStart}
       onMouseUp={handleMouseUp}
     >
       <motion.div animate={controls} className="relative">
