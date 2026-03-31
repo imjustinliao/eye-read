@@ -78,3 +78,4 @@
 
 ## Progress Log
 [v0.0] — GitHub init: MIT license + README (github.com)
+[v0.0] 2026-03-31 — Scaffold: Next.js + TypeScript + all dependencies + folder structure + CLAUDE.md + docs/
