@@ -1,0 +1,6 @@
+{
+  "manifest_version": 3,
+  "name": "Pretext Reading Companion",
+  "version": "0.1.0",
+  "description": "Silent, eye-tracking companions that live on your reading canvas."
+}
