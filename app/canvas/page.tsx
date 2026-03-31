@@ -153,6 +153,8 @@ export default function CanvasPage() {
   return <CanvasView eyeCalibration={eyeCalibration} />;
 }
 
+type CompanionMode = "anchored" | "fixed";
+
 function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [lines, setLines] = useState<PositionedLine[]>([]);
@@ -160,6 +162,11 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   const [subtitleY, setSubtitleY] = useState(0);
   const [companionPos, setCompanionPos] = useState({ x: 0, y: 0 });
   const [ready, setReady] = useState(false);
+  const [mode, setMode] = useState<CompanionMode>("anchored");
+
+  // In fixed mode, this stores the viewport position (stays constant on scroll)
+  // In anchored mode, companionPos is the page position (scrolls with content)
+  const fixedViewportPos = useRef({ x: 0, y: 0 });
 
   const preparedRef = useRef<PreparedTextWithSegments | null>(null);
   const columnLeftRef = useRef(0);
@@ -168,9 +175,18 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   const shapeProfileRef = useRef<ShapeProfile>({ rows: [], width: 0, height: 0, offsetX: 0, offsetY: 0 });
 
   const isDragging = useRef(false);
-  const didDrag = useRef(false); // true if mouse moved during press (= drag, not click)
+  const didDrag = useRef(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const rafId = useRef(0);
+  const modeRef = useRef<CompanionMode>("anchored");
+
+  // Convert viewport position to page position (adds scroll offset)
+  const viewportToPage = useCallback((vx: number, vy: number) => {
+    const stageEl = stageRef.current;
+    if (!stageEl) return { x: vx, y: vy };
+    const rect = stageEl.getBoundingClientRect();
+    return { x: vx - rect.left, y: vy - rect.top };
+  }, []);
 
   const relayout = useCallback((compX: number, compY: number) => {
     if (!preparedRef.current) return;
@@ -271,31 +287,85 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
     });
   }, []);
 
+  // --- Scroll handler for fixed mode ---
+  useEffect(() => {
+    const handleScroll = () => {
+      if (modeRef.current !== "fixed") return;
+      const pagePos = viewportToPage(fixedViewportPos.current.x, fixedViewportPos.current.y);
+      setCompanionPos(pagePos);
+      relayout(pagePos.x, pagePos.y);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [viewportToPage, relayout]);
+
+  // --- Mode toggle ---
+  const toggleMode = useCallback(() => {
+    const stageEl = stageRef.current;
+    if (!stageEl) return;
+
+    if (modeRef.current === "anchored") {
+      // Switching to fixed: save current viewport position
+      const rect = stageEl.getBoundingClientRect();
+      fixedViewportPos.current = {
+        x: companionPos.x + rect.left,
+        y: companionPos.y + rect.top,
+      };
+      modeRef.current = "fixed";
+      setMode("fixed");
+    } else {
+      // Switching to anchored: convert viewport position back to page position
+      const pagePos = viewportToPage(fixedViewportPos.current.x, fixedViewportPos.current.y);
+      modeRef.current = "anchored";
+      setMode("anchored");
+      setCompanionPos(pagePos);
+      relayout(pagePos.x, pagePos.y);
+    }
+  }, [companionPos, viewportToPage, relayout]);
+
   // --- Drag handlers ---
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isDragging.current = true;
-    didDrag.current = false; // reset — will become true if mouse moves
+    didDrag.current = false;
 
     const stageEl = stageRef.current;
     if (!stageEl) return;
     const stageRect = stageEl.getBoundingClientRect();
-    dragOffset.current = {
-      x: e.clientX - stageRect.left - companionPos.x,
-      y: e.clientY - stageRect.top - companionPos.y,
-    };
+
+    if (modeRef.current === "fixed") {
+      // In fixed mode, drag offset is relative to viewport
+      dragOffset.current = {
+        x: e.clientX - fixedViewportPos.current.x,
+        y: e.clientY - fixedViewportPos.current.y,
+      };
+    } else {
+      dragOffset.current = {
+        x: e.clientX - stageRect.left - companionPos.x,
+        y: e.clientY - stageRect.top - companionPos.y,
+      };
+    }
 
     const latestPos = { x: companionPos.x, y: companionPos.y };
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!isDragging.current) return;
+      didDrag.current = true;
 
-      didDrag.current = true; // mouse moved — this is a drag, not a click
-
-      const newX = moveEvent.clientX - stageRect.left - dragOffset.current.x;
-      const newY = moveEvent.clientY - stageRect.top - dragOffset.current.y;
-      latestPos.x = newX;
-      latestPos.y = newY;
+      if (modeRef.current === "fixed") {
+        // Update viewport position
+        const vx = moveEvent.clientX - dragOffset.current.x;
+        const vy = moveEvent.clientY - dragOffset.current.y;
+        fixedViewportPos.current = { x: vx, y: vy };
+        // Convert to page position for text layout
+        const pagePos = viewportToPage(vx, vy);
+        latestPos.x = pagePos.x;
+        latestPos.y = pagePos.y;
+      } else {
+        latestPos.x = moveEvent.clientX - stageRect.left - dragOffset.current.x;
+        latestPos.y = moveEvent.clientY - stageRect.top - dragOffset.current.y;
+      }
 
       cancelAnimationFrame(rafId.current);
       rafId.current = requestAnimationFrame(() => {
@@ -314,7 +384,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
-  }, [companionPos, relayout]);
+  }, [companionPos, relayout, viewportToPage]);
 
   // --- Rotation handler ---
   const handleRotate = useCallback((angleDeg: number) => {
@@ -371,8 +441,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
           </div>
         ))}
 
-        {/* Companion */}
-        {ready && (
+        {/* Companion — rendered inside stage for anchored, outside for fixed */}
+        {ready && mode === "anchored" && (
           <Companion
             x={companionPos.x}
             y={companionPos.y}
@@ -382,9 +452,27 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             didDrag={didDrag}
             onRotate={handleRotate}
             eyeCalibration={eyeCalibration}
+            mode="anchored"
+            onToggleMode={toggleMode}
           />
         )}
       </div>
+
+      {/* Fixed mode: companion is outside the scrolling stage */}
+      {ready && mode === "fixed" && (
+        <Companion
+          x={fixedViewportPos.current.x}
+          y={fixedViewportPos.current.y}
+          width={COMPANION_WIDTH}
+          height={COMPANION_HEIGHT}
+          onDragStart={handleDragStart}
+          didDrag={didDrag}
+          onRotate={handleRotate}
+          eyeCalibration={eyeCalibration}
+          mode="fixed"
+          onToggleMode={toggleMode}
+        />
+      )}
     </main>
   );
 }

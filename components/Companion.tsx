@@ -13,12 +13,14 @@ type CompanionProps = {
   didDrag: React.RefObject<boolean>;
   onRotate: (angleDeg: number) => void;
   eyeCalibration: EyeCalibrationPair;
+  mode: "anchored" | "fixed";
+  onToggleMode: () => void;
 };
 
 export default function Companion({
   x, y, width, height,
   onDragStart, didDrag, onRotate,
-  eyeCalibration,
+  eyeCalibration, mode, onToggleMode,
 }: CompanionProps) {
   const controls = useAnimationControls();
   const totalRotation = useRef(0);
@@ -91,8 +93,8 @@ export default function Companion({
 
   return (
     <div
-      className="absolute cursor-grab active:cursor-grabbing"
-      style={{ left: x, top: y, width, height }}
+      className={`${mode === "fixed" ? "fixed" : "absolute"} cursor-grab active:cursor-grabbing`}
+      style={{ left: x, top: y, width, height, zIndex: 50 }}
       onMouseDown={onDragStart}
       onMouseUp={handleMouseUp}
     >
@@ -106,14 +108,13 @@ export default function Companion({
           className="select-none"
         />
 
-        {/* Eye overlays — positioned relative to companion */}
+        {/* Eye overlays */}
         <svg
           className="pointer-events-none absolute inset-0"
           width={width}
           height={height}
           style={{ overflow: "visible" }}
         >
-          {/* Left eye */}
           <circle
             cx={eyeCalibration.left.cx * width}
             cy={eyeCalibration.left.cy * height}
@@ -126,8 +127,6 @@ export default function Companion({
             r={leftPupilR}
             fill={eyeCalibration.colorTheme.pupil}
           />
-
-          {/* Right eye */}
           <circle
             cx={eyeCalibration.right.cx * width}
             cy={eyeCalibration.right.cy * height}
@@ -142,6 +141,17 @@ export default function Companion({
           />
         </svg>
       </motion.div>
+
+      {/* Mode toggle button — appears on hover */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleMode(); }}
+        className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gray-900 px-2.5 py-1 text-[10px] font-medium text-white opacity-0 transition-opacity hover:bg-gray-700 group-hover:opacity-100"
+        style={{ opacity: undefined }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = "0.6"; }}
+      >
+        {mode === "anchored" ? "Pin to screen" : "Anchor to page"}
+      </button>
     </div>
   );
 }
