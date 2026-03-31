@@ -35,10 +35,10 @@
 - [x] **Commit v0.2**
 
 ## Layer 3 — Two Companion Modes
-- [ ] Page-anchored mode
-- [ ] Window-fixed mode + Pretext recalculates on scroll
-- [ ] Mode toggle per companion
-- [ ] **Commit v0.3**
+- [x] Page-anchored mode
+- [x] Window-fixed mode + Pretext recalculates on scroll
+- [x] Mode toggle per companion
+- [x] **Commit v0.3**
 
 ## Layer 4 — URL Fetch + Article Rendering
 - [ ] `/api/fetch-url` with SSRF protection
@@ -87,3 +87,4 @@
 [v0.0] 2026-03-31 — Scaffold: Next.js + TypeScript + all dependencies + folder structure + CLAUDE.md + docs/
 [v0.1] 2026-03-31 — Companion on canvas: Firebase init, Pretext text reflow, drag + rotate with pixel-accurate shape wrapping
 [v0.2] 2026-03-31 — Eye tracking: placement tool, cursor-following pupils, color presets + custom picker
+[v0.3] 2026-03-31 — Two companion modes: page-anchored + window-fixed with toggle
