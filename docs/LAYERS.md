@@ -28,11 +28,11 @@
 - [x] **Commit v0.1**
 
 ## Layer 2 — Eye Tracking
-- [ ] Eye placement tool — two circles, drag + resize
-- [ ] Calibration stored per companion
-- [ ] Pupil rendering + cursor tracking
-- [ ] Eye color themes
-- [ ] **Commit v0.2**
+- [x] Eye placement tool — Figma-style drag + corner handles
+- [x] Calibration stored per companion (fractional coords)
+- [x] Pupil rendering + cursor tracking (requestAnimationFrame)
+- [x] Eye color themes — Dark, Red presets + custom color picker
+- [x] **Commit v0.2**
 
 ## Layer 3 — Two Companion Modes
 - [ ] Page-anchored mode
@@ -70,7 +70,13 @@
 - [ ] Firestore rules finalized
 - [ ] **Commit v0.8**
 
-## Layer 9 — Polish + Ship
+## Layer 9 — Animated Eyes + Effects
+- [ ] 10 animated eye styles: Lightning, Heart, Sparkle, Spiral, Fire, Cat slit, Star, Cross, Diamond, Flower
+- [ ] Character effect presets per instance: spin, rotate, expand/shrink, custom
+- [ ] Instance resizing on canvas
+- [ ] **Commit v0.9**
+
+## Layer 10 — Polish + Ship
 - [ ] Performance audit, Vercel deploy, Web Store prep, final README
 - [ ] **Commit v1.0**
 
@@ -80,3 +86,4 @@
 [v0.0] — GitHub init: MIT license + README (github.com)
 [v0.0] 2026-03-31 — Scaffold: Next.js + TypeScript + all dependencies + folder structure + CLAUDE.md + docs/
 [v0.1] 2026-03-31 — Companion on canvas: Firebase init, Pretext text reflow, drag + rotate with pixel-accurate shape wrapping
+[v0.2] 2026-03-31 — Eye tracking: placement tool, cursor-following pupils, color presets + custom picker

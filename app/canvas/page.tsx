@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { prepareWithSegments, layoutNextLine } from "@chenglou/pretext";
 import type { PreparedTextWithSegments, LayoutCursor } from "@chenglou/pretext";
 import Companion from "@/components/Companion";
+import EyePlacementTool from "@/components/EyePlacementTool";
+import type { EyeCalibrationPair } from "@/components/EyePlacementTool";
 import {
   buildShapeProfile,
   getShapeBlockedInterval,
@@ -70,16 +72,26 @@ function getLineSlots(
     return [{ x: columnLeft, width: columnWidth }];
   }
 
+  // Clamp blocked interval to column bounds — if the companion is
+  // outside the column, it shouldn't affect text at all
+  const clampedLeft = Math.max(blocked.left, columnLeft);
+  const clampedRight = Math.min(blocked.right, columnRight);
+
+  // If the companion doesn't actually overlap the column, full width
+  if (clampedLeft >= clampedRight) {
+    return [{ x: columnLeft, width: columnWidth }];
+  }
+
   const slots: { x: number; width: number }[] = [];
 
-  const leftWidth = blocked.left - columnLeft;
+  const leftWidth = clampedLeft - columnLeft;
   if (leftWidth >= MIN_SLOT_WIDTH) {
     slots.push({ x: columnLeft, width: leftWidth });
   }
 
-  const rightWidth = columnRight - blocked.right;
+  const rightWidth = columnRight - clampedRight;
   if (rightWidth >= MIN_SLOT_WIDTH) {
-    slots.push({ x: Math.round(blocked.right), width: rightWidth });
+    slots.push({ x: Math.round(clampedRight), width: rightWidth });
   }
 
   return slots;
@@ -124,7 +136,24 @@ function layoutBody(
   return lines;
 }
 
-export default function Canvas() {
+export default function CanvasPage() {
+  const [eyeCalibration, setEyeCalibration] = useState<EyeCalibrationPair | null>(null);
+
+  if (!eyeCalibration) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white">
+        <EyePlacementTool
+          imageSrc="/companions/mark.png"
+          onDone={(cal) => setEyeCalibration(cal)}
+        />
+      </main>
+    );
+  }
+
+  return <CanvasView eyeCalibration={eyeCalibration} />;
+}
+
+function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [lines, setLines] = useState<PositionedLine[]>([]);
   const [titleLines, setTitleLines] = useState<PositionedLine[]>([]);
@@ -352,6 +381,7 @@ export default function Canvas() {
             onDragStart={handleDragStart}
             didDrag={didDrag}
             onRotate={handleRotate}
+            eyeCalibration={eyeCalibration}
           />
         )}
       </div>
