@@ -26,6 +26,12 @@ export default function Companion({
 }: CompanionProps) {
   const controls = useAnimationControls();
   const containerRef = useRef<HTMLDivElement>(null);
+  const rotationRef = useRef(currentRotation);
+
+  // Keep rotation ref in sync with prop
+  useEffect(() => {
+    rotationRef.current = currentRotation;
+  }, [currentRotation]);
 
   // Set rotation immediately on mount/mode switch (no animation)
   useEffect(() => {
@@ -45,16 +51,15 @@ export default function Companion({
       const el = containerRef.current;
       if (!el) return;
 
-      // Get the companion's actual viewport position (accounts for scroll, fixed/absolute, etc.)
       const rect = el.getBoundingClientRect();
 
       const lp = getPupilLocal(
         eyeCalibration.left, latestMouseX, latestMouseY,
-        rect, width, height, currentRotation,
+        rect, width, height, rotationRef.current,
       );
       const rp = getPupilLocal(
         eyeCalibration.right, latestMouseX, latestMouseY,
-        rect, width, height, currentRotation,
+        rect, width, height, rotationRef.current,
       );
       setLeftPupil(lp);
       setRightPupil(rp);
@@ -67,7 +72,6 @@ export default function Companion({
       rafRef.current = requestAnimationFrame(updatePupils);
     };
 
-    // Also update on scroll (for anchored mode, viewport position changes)
     const handleScroll = () => {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(updatePupils);
