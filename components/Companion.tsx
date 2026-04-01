@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState } from "react";
-import Image from "next/image";
 import { motion, useAnimationControls } from "framer-motion";
 import type { EyeCalibrationPair } from "@/components/EyePlacementTool";
 import { getPupilLocal } from "@/lib/eye-tracking";
@@ -122,14 +121,15 @@ export default function Companion({
       onTouchStart={onTouchDragStart}
       onMouseUp={handleMouseUp}
     >
-      <motion.div animate={controls} className="relative">
-        <Image
+      <motion.div animate={controls} className="relative" style={{ width, height }}>
+        {/* Plain img to avoid Next.js Image wrapper adding extra spacing */}
+        <img
           src="/companions/mark.png"
           alt="Companion"
           width={width}
           height={height}
           draggable={false}
-          className="select-none"
+          className="block select-none"
         />
 
         {/* Eye overlays — all coords in local (un-rotated) companion space */}
