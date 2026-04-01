@@ -1,8 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, useAnimationControls } from "framer-motion";
 import type { EyeCalibrationPair } from "@/components/EyePlacementTool";
-import { getPupilPosition } from "@/lib/eye-tracking";
+import { getPupilLocal } from "@/lib/eye-tracking";
 
 type CompanionProps = {
   x: number;
@@ -25,25 +25,31 @@ export default function Companion({
 }: CompanionProps) {
   const controls = useAnimationControls();
   const totalRotation = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Pupil positions (in pixels, relative to companion top-left)
+  // Pupil positions in LOCAL coords (relative to companion top-left, un-rotated)
   const [leftPupil, setLeftPupil] = useState({ x: 0, y: 0 });
   const [rightPupil, setRightPupil] = useState({ x: 0, y: 0 });
   const rafRef = useRef(0);
 
-  // Track cursor and update pupils using requestAnimationFrame
   useEffect(() => {
     let latestMouseX = 0;
     let latestMouseY = 0;
 
     const updatePupils = () => {
-      const lp = getPupilPosition(
+      const el = containerRef.current;
+      if (!el) return;
+
+      // Get the companion's actual viewport position (accounts for scroll, fixed/absolute, etc.)
+      const rect = el.getBoundingClientRect();
+
+      const lp = getPupilLocal(
         eyeCalibration.left, latestMouseX, latestMouseY,
-        x, y, width, height,
+        rect, width, height, totalRotation.current,
       );
-      const rp = getPupilPosition(
+      const rp = getPupilLocal(
         eyeCalibration.right, latestMouseX, latestMouseY,
-        x, y, width, height,
+        rect, width, height, totalRotation.current,
       );
       setLeftPupil(lp);
       setRightPupil(rp);
@@ -56,15 +62,22 @@ export default function Companion({
       rafRef.current = requestAnimationFrame(updatePupils);
     };
 
+    // Also update on scroll (for anchored mode, viewport position changes)
+    const handleScroll = () => {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(updatePupils);
+    };
+
     window.addEventListener("mousemove", handleMouseMove);
-    // Initial position
+    window.addEventListener("scroll", handleScroll, { passive: true });
     updatePupils();
 
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("scroll", handleScroll);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [x, y, width, height, eyeCalibration]);
+  }, [width, height, eyeCalibration]);
 
   const handleMouseUp = () => {
     if (!didDrag.current) {
@@ -86,7 +99,6 @@ export default function Companion({
     }
   };
 
-  // Eye rendering helpers
   const leftR = eyeCalibration.left.r * width;
   const rightR = eyeCalibration.right.r * width;
   const leftPupilR = leftR * 0.4;
@@ -94,6 +106,7 @@ export default function Companion({
 
   return (
     <div
+      ref={containerRef}
       className={`${mode === "fixed" ? "fixed" : "absolute"} cursor-grab active:cursor-grabbing`}
       style={{ left: x, top: y, width, height, zIndex: 50 }}
       onMouseDown={onDragStart}
@@ -110,7 +123,7 @@ export default function Companion({
           className="select-none"
         />
 
-        {/* Eye overlays */}
+        {/* Eye overlays — all coords in local (un-rotated) companion space */}
         <svg
           className="pointer-events-none absolute inset-0"
           width={width}
@@ -124,8 +137,8 @@ export default function Companion({
             fill={eyeCalibration.colorTheme.eyeWhite}
           />
           <circle
-            cx={leftPupil.x - x}
-            cy={leftPupil.y - y}
+            cx={leftPupil.x}
+            cy={leftPupil.y}
             r={leftPupilR}
             fill={eyeCalibration.colorTheme.pupil}
           />
@@ -136,15 +149,14 @@ export default function Companion({
             fill={eyeCalibration.colorTheme.eyeWhite}
           />
           <circle
-            cx={rightPupil.x - x}
-            cy={rightPupil.y - y}
+            cx={rightPupil.x}
+            cy={rightPupil.y}
             r={rightPupilR}
             fill={eyeCalibration.colorTheme.pupil}
           />
         </svg>
       </motion.div>
 
-      {/* Mode toggle button — appears on hover */}
       <button
         onClick={(e) => { e.stopPropagation(); onToggleMode(); }}
         className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gray-900 px-2.5 py-1 text-[10px] font-medium text-white opacity-0 transition-opacity hover:bg-gray-700 group-hover:opacity-100"

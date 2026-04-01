@@ -1,56 +1,67 @@
 import type { EyeCalibration } from "@/components/EyePlacementTool";
 
 /**
- * Calculate where a pupil should be, given the cursor position.
+ * Calculate pupil position in the companion's LOCAL coordinate space
+ * (relative to companion top-left, before rotation).
  *
- * The pupil moves toward the cursor but stays inside the eye boundary.
- * Returns the pupil center in pixels, relative to the companion's top-left.
+ * Takes the cursor position in viewport coords, the companion's viewport
+ * rect, and the rotation angle to correctly un-rotate the cursor direction.
  *
- * How the math works:
- * 1. Find the angle from the eye center to the cursor (using atan2)
- * 2. Find the distance from the eye center to the cursor
- * 3. The pupil moves proportionally toward the cursor, but is clamped
- *    so it never exits the eye boundary (radius minus pupil size)
+ * Returns {x, y} in local companion coords (0,0 = companion top-left).
  */
-export function getPupilPosition(
+export function getPupilLocal(
   eye: EyeCalibration,
   cursorX: number,
   cursorY: number,
-  companionX: number,
-  companionY: number,
+  companionRect: { left: number; top: number; width: number; height: number },
   companionWidth: number,
   companionHeight: number,
+  rotationDeg: number,
 ): { x: number; y: number } {
-  // Convert fractional eye position to pixel position on the page
-  const eyeCenterX = companionX + eye.cx * companionWidth;
-  const eyeCenterY = companionY + eye.cy * companionHeight;
+  // Eye center in local coords
+  const localEyeX = eye.cx * companionWidth;
+  const localEyeY = eye.cy * companionHeight;
   const eyeRadius = eye.r * companionWidth;
-
-  // Pupil is smaller than the eye — leave room so it stays inside
   const pupilRadius = eyeRadius * 0.4;
   const maxDistance = eyeRadius - pupilRadius;
 
-  // Vector from eye center to cursor
-  const dx = cursorX - eyeCenterX;
-  const dy = cursorY - eyeCenterY;
+  // Companion center in viewport coords
+  const compCenterVpX = companionRect.left + companionRect.width / 2;
+  const compCenterVpY = companionRect.top + companionRect.height / 2;
+
+  // Cursor relative to companion center (viewport space)
+  const relX = cursorX - compCenterVpX;
+  const relY = cursorY - compCenterVpY;
+
+  // Un-rotate cursor direction to get it in local (un-rotated) space
+  const angleRad = (-rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+  const localCursorX = relX * cos - relY * sin;
+  const localCursorY = relX * sin + relY * cos;
+
+  // Now localCursor is relative to companion center in local space.
+  // Convert to be relative to companion top-left.
+  const cursorFromOriginX = localCursorX + companionWidth / 2;
+  const cursorFromOriginY = localCursorY + companionHeight / 2;
+
+  // Vector from eye center to cursor (both in local space)
+  const dx = cursorFromOriginX - localEyeX;
+  const dy = cursorFromOriginY - localEyeY;
   const distance = Math.sqrt(dx * dx + dy * dy);
 
   if (distance === 0) {
-    // Cursor is exactly on the eye center — pupil stays centered
-    return { x: eyeCenterX, y: eyeCenterY };
+    return { x: localEyeX, y: localEyeY };
   }
 
-  // How far the pupil should move (proportional, with a cap)
-  // The pupil reaches the edge when the cursor is ~200px away
-  const pullStrength = Math.min(1, distance / 200);
+  const pullStrength = Math.min(1, distance / 150);
   const pupilDistance = pullStrength * maxDistance;
 
-  // Unit vector (direction) from eye center to cursor
   const ux = dx / distance;
   const uy = dy / distance;
 
   return {
-    x: eyeCenterX + ux * pupilDistance,
-    y: eyeCenterY + uy * pupilDistance,
+    x: localEyeX + ux * pupilDistance,
+    y: localEyeY + uy * pupilDistance,
   };
 }
