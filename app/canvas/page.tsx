@@ -168,9 +168,94 @@ function layoutBody(
   return lines;
 }
 
-export default function CanvasPage() {
-  const [eyeCalibration, setEyeCalibration] = useState<EyeCalibrationPair | null>(null);
+type ArticleData = {
+  title: string;
+  subtitle: string;
+  body: string;
+};
 
+export default function CanvasPage() {
+  const [article, setArticle] = useState<ArticleData | null>(null);
+  const [eyeCalibration, setEyeCalibration] = useState<EyeCalibrationPair | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleFetchUrl = async () => {
+    if (!urlInput.trim()) return;
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/fetch-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: urlInput.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch article");
+      }
+
+      setArticle({
+        title: data.title,
+        subtitle: data.byline || data.siteName || "",
+        body: data.textContent,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 1: URL input
+  if (!article) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white px-4">
+        <div className="flex w-full max-w-lg flex-col items-center gap-5">
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Paste an article URL
+          </h1>
+          <div className="flex w-full gap-2">
+            <input
+              type="url"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleFetchUrl()}
+              placeholder="https://..."
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm text-gray-900 outline-none transition-colors focus:border-gray-500"
+              disabled={loading}
+            />
+            <button
+              onClick={handleFetchUrl}
+              disabled={loading || !urlInput.trim()}
+              className="rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
+            >
+              {loading ? "Loading..." : "Read"}
+            </button>
+          </div>
+          {error && (
+            <p className="text-sm text-red-500">{error}</p>
+          )}
+          <button
+            onClick={() => setArticle({
+              title: TITLE,
+              subtitle: SUBTITLE,
+              body: BODY,
+            })}
+            className="text-xs text-gray-400 transition-colors hover:text-gray-600"
+          >
+            or use sample article
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // Step 2: Eye placement
   if (!eyeCalibration) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white">
@@ -182,12 +267,13 @@ export default function CanvasPage() {
     );
   }
 
-  return <CanvasView eyeCalibration={eyeCalibration} />;
+  // Step 3: Canvas
+  return <CanvasView eyeCalibration={eyeCalibration} article={article} />;
 }
 
 type CompanionMode = "anchored" | "fixed";
 
-function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) {
+function CanvasView({ eyeCalibration, article }: { eyeCalibration: EyeCalibrationPair; article: ArticleData }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [lines, setLines] = useState<PositionedLine[]>([]);
   const [titleLines, setTitleLines] = useState<PositionedLine[]>([]);
@@ -299,7 +385,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       columnWidthRef.current = columnWidth;
 
       // Title
-      const titlePrepared = prepareWithSegments(TITLE, resp.titleFont);
+      const titlePrepared = prepareWithSegments(article.title, resp.titleFont);
       const tLines: PositionedLine[] = [];
       let tCursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
       let tY = resp.paddingTop;
@@ -326,7 +412,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       const compY = bodyStartY + resp.lineHeight * 3;
       setCompanionPos({ x: compX, y: compY });
 
-      const prepared = prepareWithSegments(BODY, resp.font);
+      const prepared = prepareWithSegments(article.body, resp.font);
       preparedRef.current = prepared;
 
       const bodyLines = layoutBody(
@@ -364,7 +450,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       columnWidthRef.current = columnWidth;
 
       // Re-layout title
-      const titlePrepared = prepareWithSegments(TITLE, resp.titleFont);
+      const titlePrepared = prepareWithSegments(article.title, resp.titleFont);
       const tLines: PositionedLine[] = [];
       let tCursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
       let tY = resp.paddingTop;
@@ -610,7 +696,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
               lineHeight: "28px",
             }}
           >
-            {SUBTITLE}
+            {article.subtitle}
           </div>
         )}
 
