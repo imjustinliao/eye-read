@@ -42,10 +42,18 @@ const MIN_SLOT_WIDTH = 40;
 function getResponsiveLayout(screenWidth: number) {
   const isSmall = screenWidth < 640;
   const isMedium = screenWidth < 1024;
+  const fontSize = isSmall ? 16 : 18;
+  const titleFontSize = isSmall ? 28 : 36;
+  const fontFamily = '"Georgia", serif';
   return {
-    font: isSmall ? '16px "Georgia", serif' : '18px "Georgia", serif',
+    // Shorthand strings for Pretext (needs the full CSS font string)
+    font: `${fontSize}px ${fontFamily}`,
+    titleFont: `bold ${titleFontSize}px ${fontFamily}`,
+    // Separate values for React inline styles (avoids shorthand conflict)
+    fontSize,
+    titleFontSize,
+    fontFamily,
     lineHeight: isSmall ? 26 : 30,
-    titleFont: isSmall ? 'bold 28px "Georgia", serif' : 'bold 36px "Georgia", serif',
     titleLineHeight: isSmall ? 34 : 44,
     paddingX: isSmall ? 16 : 24,
     paddingTop: isSmall ? 40 : 64,
@@ -580,7 +588,9 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             style={{
               left: line.x,
               top: line.y,
-              font: layoutConfig.titleFont,
+              fontSize: layoutConfig.titleFontSize,
+              fontFamily: layoutConfig.fontFamily,
+              fontWeight: "bold",
               lineHeight: `${layoutConfig.titleLineHeight}px`,
             }}
           >
@@ -595,7 +605,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             style={{
               left: columnLeftRef.current,
               top: subtitleY,
-              font: layoutConfig.font,
+              fontSize: layoutConfig.fontSize,
+              fontFamily: layoutConfig.fontFamily,
               lineHeight: "28px",
             }}
           >
@@ -611,7 +622,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             style={{
               left: line.x,
               top: line.y,
-              font: layoutConfig.font,
+              fontSize: layoutConfig.fontSize,
+              fontFamily: layoutConfig.fontFamily,
               lineHeight: `${layoutConfig.lineHeight}px`,
             }}
           >
