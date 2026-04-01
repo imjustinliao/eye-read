@@ -13,6 +13,7 @@ type CompanionProps = {
   onTouchDragStart: (e: React.TouchEvent) => void;
   didDrag: React.RefObject<boolean>;
   onRotate: (angleDeg: number) => void;
+  currentRotation: number;
   eyeCalibration: EyeCalibrationPair;
   mode: "anchored" | "fixed";
   onToggleMode: () => void;
@@ -21,11 +22,15 @@ type CompanionProps = {
 export default function Companion({
   x, y, width, height,
   onDragStart, onTouchDragStart, didDrag, onRotate,
-  eyeCalibration, mode, onToggleMode,
+  currentRotation, eyeCalibration, mode, onToggleMode,
 }: CompanionProps) {
   const controls = useAnimationControls();
-  const totalRotation = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Set rotation immediately on mount/mode switch (no animation)
+  useEffect(() => {
+    controls.set({ rotate: currentRotation });
+  }, []); // only on mount
 
   // Pupil positions in LOCAL coords (relative to companion top-left, un-rotated)
   const [leftPupil, setLeftPupil] = useState({ x: 0, y: 0 });
@@ -45,11 +50,11 @@ export default function Companion({
 
       const lp = getPupilLocal(
         eyeCalibration.left, latestMouseX, latestMouseY,
-        rect, width, height, totalRotation.current,
+        rect, width, height, currentRotation,
       );
       const rp = getPupilLocal(
         eyeCalibration.right, latestMouseX, latestMouseY,
-        rect, width, height, totalRotation.current,
+        rect, width, height, currentRotation,
       );
       setLeftPupil(lp);
       setRightPupil(rp);
@@ -82,20 +87,20 @@ export default function Companion({
   const handleMouseUp = () => {
     if (!didDrag.current) {
       const nudge = 15 + Math.random() * 10;
-      totalRotation.current += nudge;
+      const newRotation = currentRotation + nudge;
 
       const size = Math.max(width, height);
       const duration = size * 0.002;
 
       controls.start({
-        rotate: totalRotation.current,
+        rotate: newRotation,
         transition: {
           duration,
           ease: [0.2, 0.8, 0.3, 1],
         },
       });
 
-      onRotate(totalRotation.current);
+      onRotate(newRotation);
     }
   };
 

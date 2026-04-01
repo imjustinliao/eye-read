@@ -189,6 +189,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   const companionSizeRef = useRef({ w: 150, h: 150 });
   const [ready, setReady] = useState(false);
   const [stageHeight, setStageHeight] = useState(0);
+  const [rotation, setRotation] = useState(0);
   const [mode, setMode] = useState<CompanionMode>("anchored");
   const [layoutConfig, setLayoutConfig] = useState(() =>
     typeof window !== "undefined" ? getResponsiveLayout(window.innerWidth) : getResponsiveLayout(1024),
@@ -564,6 +565,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
 
   // --- Rotation handler ---
   const handleRotate = useCallback((angleDeg: number) => {
+    setRotation(angleDeg);
     rebuildShapeAndRelayout(companionPos.x, companionPos.y, angleDeg);
   }, [companionPos, rebuildShapeAndRelayout]);
 
@@ -628,6 +630,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
             onTouchDragStart={handleTouchStart}
             didDrag={didDrag}
             onRotate={handleRotate}
+            currentRotation={rotation}
             eyeCalibration={eyeCalibration}
             mode="anchored"
             onToggleMode={toggleMode}
@@ -646,6 +649,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
           onTouchDragStart={handleTouchStart}
           didDrag={didDrag}
           onRotate={handleRotate}
+          currentRotation={rotation}
           eyeCalibration={eyeCalibration}
           mode="fixed"
           onToggleMode={toggleMode}
