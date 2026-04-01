@@ -88,3 +88,5 @@
 [v0.1] 2026-03-31 — Companion on canvas: Firebase init, Pretext text reflow, drag + rotate with pixel-accurate shape wrapping
 [v0.2] 2026-03-31 — Eye tracking: placement tool, cursor-following pupils, color presets + custom picker
 [v0.3] 2026-03-31 — Two companion modes: page-anchored + window-fixed with toggle
+[v0.4] 2026-03-31 — Responsive layout + longer article + touch support + scroll reflow fixes
+[v0.45] 2026-03-31 — Eye tracking fixes: rotation-aware, mode-aware, gravity-correct
