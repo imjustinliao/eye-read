@@ -188,6 +188,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   const [companionSize, setCompanionSize] = useState({ w: 150, h: 150 });
   const companionSizeRef = useRef({ w: 150, h: 150 });
   const [ready, setReady] = useState(false);
+  const [stageHeight, setStageHeight] = useState(0);
   const [mode, setMode] = useState<CompanionMode>("anchored");
   const [layoutConfig, setLayoutConfig] = useState(() =>
     typeof window !== "undefined" ? getResponsiveLayout(window.innerWidth) : getResponsiveLayout(1024),
@@ -209,6 +210,15 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   const rafId = useRef(0);
   const modeRef = useRef<CompanionMode>("anchored");
 
+  // Update lines and recalculate stage height
+  const updateLines = useCallback((newLines: PositionedLine[]) => {
+    setLines(newLines);
+    if (newLines.length > 0) {
+      const lastLine = newLines[newLines.length - 1];
+      setStageHeight(lastLine.y + lineHeightRef.current + 100); // 100px bottom padding
+    }
+  }, []);
+
   // Convert viewport position to page position (adds scroll offset)
   const viewportToPage = useCallback((vx: number, vy: number) => {
     const stageEl = stageRef.current;
@@ -228,7 +238,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       shapeProfileRef.current,
       lineHeightRef.current,
     );
-    setLines(bodyLines);
+    updateLines(bodyLines);
   }, [companionSize]);
 
   // Rebuild shape profile at a given angle and relayout text
@@ -254,7 +264,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       profile,
       lineHeightRef.current,
     );
-    setLines(bodyLines);
+    updateLines(bodyLines);
   }, [companionSize]);
 
   // --- Initial layout on mount ---
@@ -319,7 +329,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
         shapeProfile,
         resp.lineHeight,
       );
-      setLines(bodyLines);
+      updateLines(bodyLines);
       setReady(true);
     });
   }, []);
@@ -390,7 +400,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
           profile,
           resp.lineHeight,
         );
-        setLines(bodyLines);
+        updateLines(bodyLines);
       });
     };
 
@@ -426,13 +436,15 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
           shapeProfileRef.current,
           lineHeightRef.current,
         );
-        setLines(bodyLines);
+        updateLines(bodyLines);
       });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
+    document.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", handleScroll);
+      document.removeEventListener("scroll", handleScroll);
       cancelAnimationFrame(scrollRaf);
     };
   }, []);
@@ -557,7 +569,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-white">
-      <div ref={stageRef} className="relative w-full" style={{ minHeight: "100vh" }}>
+      <div ref={stageRef} className="relative w-full" style={{ minHeight: stageHeight > 0 ? `${stageHeight}px` : "100vh" }}>
         {/* Title */}
         {titleLines.map((line, i) => (
           <div
