@@ -15,8 +15,23 @@ import {
 // --- Article content ---
 const TITLE = "The Secret Life of Trees";
 const SUBTITLE = "How forests communicate through an underground network";
-const BODY =
-  "Beneath the forest floor lies a vast network of fungal threads connecting the roots of trees. Scientists call it the mycorrhizal network — but it has earned a more poetic name: the Wood Wide Web. Through this network, trees share nutrients, send chemical warnings about insect attacks, and even nurture their young.\n\nA mother tree — the oldest and tallest in a grove — can recognize her own seedlings among the crowd. She sends them extra carbon through the fungal network, giving them a better chance of survival in the shaded understory. When a tree is dying, it dumps its resources into the network, feeding its neighbors one final time.\n\nThis discovery has reshaped how ecologists think about competition in forests. Trees are not isolated individuals fighting for sunlight. They are members of a community, cooperating through shared infrastructure that is invisible to the naked eye.\n\nThe implications extend beyond biology. Urban planners are beginning to consider mycorrhizal health when designing green spaces. Conservationists argue that protecting a single ancient tree means protecting an entire network. And philosophers see in the Wood Wide Web a metaphor for the kind of quiet, persistent interconnection that sustains all living systems.\n\nNext time you walk through a forest, remember: beneath your feet, the trees are talking.";
+const BODY = [
+  "Beneath the forest floor lies a vast network of fungal threads connecting the roots of trees. Scientists call it the mycorrhizal network — but it has earned a more poetic name: the Wood Wide Web. Through this network, trees share nutrients, send chemical warnings about insect attacks, and even nurture their young.",
+  "A mother tree — the oldest and tallest in a grove — can recognize her own seedlings among the crowd. She sends them extra carbon through the fungal network, giving them a better chance of survival in the shaded understory. When a tree is dying, it dumps its resources into the network, feeding its neighbors one final time.",
+  "This discovery has reshaped how ecologists think about competition in forests. Trees are not isolated individuals fighting for sunlight. They are members of a community, cooperating through shared infrastructure that is invisible to the naked eye.",
+  "The implications extend beyond biology. Urban planners are beginning to consider mycorrhizal health when designing green spaces. Conservationists argue that protecting a single ancient tree means protecting an entire network. And philosophers see in the Wood Wide Web a metaphor for the kind of quiet, persistent interconnection that sustains all living systems.",
+  "Suzanne Simard, the Canadian ecologist who first proved these connections exist, spent decades being dismissed by the forestry establishment. Her early papers were rejected. Colleagues questioned her methods. The idea that trees could communicate seemed too anthropomorphic, too sentimental for serious science. But Simard persisted, designing ever more rigorous experiments using radioactive carbon isotopes to trace the flow of nutrients between trees.",
+  "Her breakthrough came in 1997, when she published a paper in Nature showing that Douglas fir and paper birch trees were sharing carbon through mycorrhizal networks. The paper was a sensation. It demonstrated not just that trees were connected, but that they were actively transferring resources to one another — sometimes across species lines.",
+  "Since then, researchers around the world have expanded on Simard's work. Studies in European beech forests have shown that trees synchronize their growth rates through the network, growing more slowly in good years so that struggling neighbors can catch up. In tropical forests, seedlings that are connected to the network survive at rates far higher than those that are not.",
+  "The network is not limited to trees. Mycorrhizal fungi form partnerships with roughly ninety percent of all land plants. A single fungal network can connect dozens of trees across hundreds of meters. Some networks are thousands of years old — older than any individual tree they support.",
+  "There is growing evidence that the network carries not just nutrients but information. When a tree is attacked by insects, it can release chemical signals through the fungal threads that prompt neighboring trees to produce defensive compounds before the insects arrive. This is not metaphor. It is chemistry.",
+  "The practical implications are enormous. Industrial forestry has traditionally treated forests as collections of individual trees — resources to be harvested one by one. But if trees depend on underground networks for survival, then clear-cutting does not just remove trees. It destroys the infrastructure that remaining trees need to recover.",
+  "Some foresters are already changing their practices. In British Columbia, Simard has helped design retention harvesting protocols that preserve mother trees and their network connections. Early results suggest that forests managed this way regenerate faster and support greater biodiversity.",
+  "Cities are paying attention too. Urban forests — the trees lining streets and filling parks — are typically planted as isolated individuals in compacted soil, cut off from any network. New approaches to urban forestry are experimenting with connected planting beds and mycorrhizal inoculants to give city trees the underground partnerships they evolved to depend on.",
+  "The philosophical implications run deeper still. Western science has long been built on the assumption that nature is fundamentally competitive — that evolution selects for individuals who outcompete their neighbors. The Wood Wide Web suggests a more nuanced picture: one in which cooperation and mutual aid are not exceptions to the rule of nature, but central to it.",
+  "Indigenous cultures around the world have long held this view. Many First Nations in the Pacific Northwest speak of trees as relatives — as beings embedded in networks of reciprocal obligation. Simard has acknowledged that her scientific findings echo what Indigenous knowledge keepers have been saying for millennia.",
+  "Next time you walk through a forest, pause for a moment. Look at the trees around you — not as isolated columns of wood, but as nodes in an ancient, living network. Beneath your feet, through threads thinner than a human hair, they are sharing food, sending warnings, and nurturing their young. The forest is not a collection of individuals. It is a community. And it has been talking long before we learned to listen.",
+].join("\n\n");
 
 // --- Layout constants (responsive) ---
 const COLUMN_MAX_WIDTH = 672;
@@ -171,6 +186,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   const [subtitleY, setSubtitleY] = useState(0);
   const [companionPos, setCompanionPos] = useState({ x: 0, y: 0 });
   const [companionSize, setCompanionSize] = useState({ w: 150, h: 150 });
+  const companionSizeRef = useRef({ w: 150, h: 150 });
   const [ready, setReady] = useState(false);
   const [mode, setMode] = useState<CompanionMode>("anchored");
   const [layoutConfig, setLayoutConfig] = useState(() =>
@@ -178,6 +194,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   );
 
   const fixedViewportPos = useRef({ x: 0, y: 0 });
+  const [fixedPos, setFixedPos] = useState({ x: 0, y: 0 });
 
   const preparedRef = useRef<PreparedTextWithSegments | null>(null);
   const columnLeftRef = useRef(0);
@@ -245,6 +262,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
     const resp = getResponsiveLayout(window.innerWidth);
     setLayoutConfig(resp);
     setCompanionSize({ w: resp.companionWidth, h: resp.companionHeight });
+    companionSizeRef.current = { w: resp.companionWidth, h: resp.companionHeight };
 
     Promise.all([
       document.fonts.ready,
@@ -306,6 +324,56 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
     });
   }, []);
 
+  // --- Window resize handler ---
+  useEffect(() => {
+    const handleResize = () => {
+      const stageEl = stageRef.current;
+      if (!stageEl || !preparedRef.current) return;
+
+      const resp = getResponsiveLayout(window.innerWidth);
+      setLayoutConfig(resp);
+      lineHeightRef.current = resp.lineHeight;
+
+      const stageWidth = stageEl.clientWidth;
+      const columnWidth = Math.min(COLUMN_MAX_WIDTH, stageWidth - resp.paddingX * 2);
+      const columnLeft = Math.round((stageWidth - columnWidth) / 2);
+      columnLeftRef.current = columnLeft;
+      columnWidthRef.current = columnWidth;
+
+      // Re-layout title
+      const titlePrepared = prepareWithSegments(TITLE, resp.titleFont);
+      const tLines: PositionedLine[] = [];
+      let tCursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 };
+      let tY = resp.paddingTop;
+      while (true) {
+        const line = layoutNextLine(titlePrepared, tCursor, columnWidth);
+        if (line === null) break;
+        tLines.push({ x: columnLeft, y: tY, text: line.text });
+        tCursor = line.end;
+        tY += resp.titleLineHeight;
+      }
+      setTitleLines(tLines);
+      const subY = tY + 8;
+      setSubtitleY(subY);
+      bodyStartYRef.current = subY + 36;
+
+      // Re-layout body
+      const bodyLines = layoutBody(
+        preparedRef.current,
+        bodyStartYRef.current,
+        columnLeft,
+        columnWidth,
+        { x: companionPos.x, y: companionPos.y, width: companionSizeRef.current.w, height: companionSizeRef.current.h },
+        shapeProfileRef.current,
+        resp.lineHeight,
+      );
+      setLines(bodyLines);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [companionPos]);
+
   // --- Scroll handler for fixed mode ---
   // When scrolling in fixed mode, the companion's PAGE position changes
   // (even though its VIEWPORT position stays the same), so text must reflow.
@@ -330,7 +398,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
           bodyStartYRef.current,
           columnLeftRef.current,
           columnWidthRef.current,
-          { x: pageX, y: pageY, width: companionSize.w, height: companionSize.h },
+          { x: pageX, y: pageY, width: companionSizeRef.current.w, height: companionSizeRef.current.h },
           shapeProfileRef.current,
           lineHeightRef.current,
         );
@@ -353,10 +421,12 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
     if (modeRef.current === "anchored") {
       // Switching to fixed: save current viewport position
       const rect = stageEl.getBoundingClientRect();
-      fixedViewportPos.current = {
+      const vp = {
         x: companionPos.x + rect.left,
         y: companionPos.y + rect.top,
       };
+      fixedViewportPos.current = vp;
+      setFixedPos(vp);
       modeRef.current = "fixed";
       setMode("fixed");
     } else {
@@ -400,6 +470,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
         const vx = cx - dragOffset.current.x;
         const vy = cy - dragOffset.current.y;
         fixedViewportPos.current = { x: vx, y: vy };
+        setFixedPos({ x: vx, y: vy });
         const rect = stageRef.current?.getBoundingClientRect();
         if (rect) {
           latestPos.x = vx - rect.left;
@@ -531,8 +602,8 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       {/* Fixed mode: companion is outside the scrolling stage */}
       {ready && mode === "fixed" && (
         <Companion
-          x={fixedViewportPos.current.x}
-          y={fixedViewportPos.current.y}
+          x={fixedPos.x}
+          y={fixedPos.y}
           width={companionSize.w}
           height={companionSize.h}
           onDragStart={handleDragStart}
