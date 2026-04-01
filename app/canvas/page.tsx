@@ -334,6 +334,10 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       setLayoutConfig(resp);
       lineHeightRef.current = resp.lineHeight;
 
+      // Update companion size
+      companionSizeRef.current = { w: resp.companionWidth, h: resp.companionHeight };
+      setCompanionSize({ w: resp.companionWidth, h: resp.companionHeight });
+
       const stageWidth = stageEl.clientWidth;
       const columnWidth = Math.min(COLUMN_MAX_WIDTH, stageWidth - resp.paddingX * 2);
       const columnLeft = Math.round((stageWidth - columnWidth) / 2);
@@ -357,17 +361,37 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
       setSubtitleY(subY);
       bodyStartYRef.current = subY + 36;
 
-      // Re-layout body
-      const bodyLines = layoutBody(
-        preparedRef.current,
-        bodyStartYRef.current,
-        columnLeft,
-        columnWidth,
-        { x: companionPos.x, y: companionPos.y, width: companionSizeRef.current.w, height: companionSizeRef.current.h },
-        shapeProfileRef.current,
-        resp.lineHeight,
-      );
-      setLines(bodyLines);
+      // Clamp companion position to stay within visible area
+      const maxX = stageWidth - resp.companionWidth;
+      const clampedX = Math.max(0, Math.min(maxX, companionPos.x));
+      const clampedY = Math.max(0, companionPos.y);
+      setCompanionPos({ x: clampedX, y: clampedY });
+
+      // If in fixed mode, also clamp viewport position
+      if (modeRef.current === "fixed") {
+        const vpX = Math.max(0, Math.min(window.innerWidth - resp.companionWidth, fixedViewportPos.current.x));
+        const vpY = Math.max(0, Math.min(window.innerHeight - resp.companionHeight, fixedViewportPos.current.y));
+        fixedViewportPos.current = { x: vpX, y: vpY };
+        setFixedPos({ x: vpX, y: vpY });
+      }
+
+      // Rebuild shape profile for new companion size
+      buildShapeProfile("/companions/mark.png", resp.companionWidth, resp.companionHeight, 0).then((profile) => {
+        shapeProfileRef.current = profile;
+
+        // Re-layout body with clamped position
+        if (!preparedRef.current) return;
+        const bodyLines = layoutBody(
+          preparedRef.current,
+          bodyStartYRef.current,
+          columnLeft,
+          columnWidth,
+          { x: clampedX, y: clampedY, width: resp.companionWidth, height: resp.companionHeight },
+          profile,
+          resp.lineHeight,
+        );
+        setLines(bodyLines);
+      });
     };
 
     window.addEventListener("resize", handleResize);
@@ -532,7 +556,7 @@ function CanvasView({ eyeCalibration }: { eyeCalibration: EyeCalibrationPair }) 
   }, [companionPos, rebuildShapeAndRelayout]);
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen overflow-x-hidden bg-white">
       <div ref={stageRef} className="relative w-full" style={{ minHeight: "100vh" }}>
         {/* Title */}
         {titleLines.map((line, i) => (
